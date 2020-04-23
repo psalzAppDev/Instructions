@@ -7,6 +7,7 @@ on:
     - github-actions
 
 env:
+  # Expected to be used withint scripts.
   LANG: en_US.UTF-8
 
   PROJECT: "Instructions.xcodeproj"
@@ -23,6 +24,7 @@ env:
 
   DESTINATION: "OS=13.4,name=iPhone 11"
 
+  # Wether or not to perform certain steps.
   run_pod_lint: true
   build_example: true
   build_app_extension_example: true
@@ -43,7 +45,9 @@ jobs:
           submodules: 'recursive'
 
       - name: Install test dependencies
-        run: gem install slather && cd "Examples" && carthage bootstrap --platform ios && cd ..
+        run: |
+          gem install slather
+          cd "Examples" && carthage bootstrap --platform ios && cd ..
 
       - name: Run Cocoapods' linter
         if: env.run_pod_lint == 'true'
