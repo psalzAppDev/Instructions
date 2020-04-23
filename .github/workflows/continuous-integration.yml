@@ -85,14 +85,14 @@ jobs:
         env:
           # Instead of using a matrix, we're just going to use a bash loop to
           # test multiple simulators.
-          iphone11: "OS=13.4,name=iPhone 11"
-          iphone8: "OS=13.4,name=iPhone 8"
-          ipadpro: "OS=13.4,name=iPad Pro (11-inch) (2nd generation)"
-          ipadair: "OS=13.4,name=iPad Air (3rd generation)"
+          IPHONE_11: "OS=13.4,name=iPhone 11"
+          IPHONE_8: "OS=13.4,name=iPhone 8"
+          IPAD_PRO: "OS=13.4,name=iPad Pro (11-inch) (2nd generation)"
+          IPAD_AIR: "OS=13.4,name=iPad Air (3rd generation)"
         run: |
           IFS_BACKUP=$IFS
           IFS=":"
-          DEVICES=( {{ env.iphone11 }}:{{ env.iphone8 }}:{{ env.ipadpro }}:{{ env.ipadair }} )
+          DEVICES=( ${IPHONE_11}:${IPHONE_8}:${IPAD_PRO}:${IPAD_AIR} )
           for TEST_DESTINATION in ( $DEVICES ); do
             set -o pipefail && xcodebuild test -project "$EXAMPLE_PROJECT" -scheme "$EXAMPLE_SCHEME" \
             -sdk "$SDK" -destination "$TEST_DESTINATION" -configuration Debug -enableCodeCoverage YES \
