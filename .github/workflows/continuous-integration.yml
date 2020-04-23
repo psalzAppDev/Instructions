@@ -21,6 +21,16 @@ env:
 
   ALLOW_WARNINGS: "NO"
 
+  DESTINATION: "OS=13.4,name=iPhone 11"
+
+  # Instead of using a matrix, we're just going to use a bash loop to
+  # test multiple simulators.
+  devices:
+    iphone11: "OS=13.4,name=iPhone 11"
+    iphone8: "OS=13.4,name=iPhone 8"
+    ipadpro: "OS=13.4,name=iPad Pro (11-inch) (2nd generation)"
+    ipadair: "OS=13.4,name=iPad Air (3rd generation)"
+
   run_pod_lint: true
   build_example: true
   build_app_extension_example: true
@@ -30,14 +40,6 @@ jobs:
   test:
     name: Build, lint & test
     runs-on: macos-10.15
-
-    strategy:
-      matrix:
-        destination:
-          - "OS=13.4,name=iPhone 11"
-          - "OS=13.4,name=iPhone 8"
-          - "OS=13.4,name=iPad Pro (11-inch)"
-          - "OS=13.4,name=iPad Air (3rd generation)"
 
     steps:
       - name: Switch Xcode version
@@ -64,27 +66,36 @@ jobs:
 
       - name: Build example project
         if: env.build_example == 'true'
-        env:
-          DESTINATION: ${{ matrix.destination }}
-        run: set -o pipefail && xcodebuild clean build -project "$EXAMPLE_PROJECT" -scheme "$EXAMPLE_SCHEME" -sdk "$SDK" -destination "$DESTINATION" ONLY_ACTIVE_ARCH=YES | xcpretty -c;
+        run: >
+          set -o pipefail && xcodebuild clean build -project "$EXAMPLE_PROJECT"
+          -scheme "$EXAMPLE_SCHEME" -sdk "$SDK" -destination "$DESTINATION"
+          ONLY_ACTIVE_ARCH=YES | xcpretty -c;
 
       - name: Build App Extensions example project
         if: env.build_app_extension_example == 'true'
-        env:
-          DESTINATION: ${{ matrix.destination }}
-        run: set -o pipefail && xcodebuild clean build -project "$APPEX_EXAMPLE_PROJECT" -scheme "$APPEX_EXAMPLE_SCHEME" -sdk "$SDK" -destination "$DESTINATION" ONLY_ACTIVE_ARCH=YES | xcpretty -c;
+        run: >
+          set -o pipefail && xcodebuild clean build -project "$APPEX_EXAMPLE_PROJECT"
+          -scheme "$APPEX_EXAMPLE_SCHEME" -sdk "$SDK" -destination "$DESTINATION"
+          ONLY_ACTIVE_ARCH=YES | xcpretty -c;
 
       - name: Build frameworks
-        if: env.run_tests != 'true' # Will be built by the test task anyway.
-        env:
-          DESTINATION: ${{ matrix.destination }}
-        run: set -o pipefail && xcodebuild clean build -project "$PROJECT" -scheme "$SCHEME" -sdk "$SDK" -destination "$DESTINATION" -configuration Debug ONLY_ACTIVE_ARCH=YES | xcpretty -c;
+        run: >
+          set -o pipefail && xcodebuild clean build -project "$PROJECT"
+          -scheme "$SCHEME" -sdk "$SDK" -destination "$DESTINATION"
+          -configuration Debug ONLY_ACTIVE_ARCH=YES | xcpretty -c;
 
       - name: Run tests
         if: env.run_tests == 'true'
-        env:
-          DESTINATION: ${{ matrix.destination }}
-        run: set -o pipefail && xcodebuild test -project "$EXAMPLE_PROJECT" -scheme "$EXAMPLE_SCHEME" -sdk "$SDK" -destination "$DESTINATION" -configuration Debug -enableCodeCoverage YES -derivedDataPath Build/ ONLY_ACTIVE_ARCH=YES | xcpretty -c;
+        run: |
+          IFS_BACKUP=$IFS
+          IFS=":"
+          DEVICES=( {{ env.devices.iphone11 }}:{{ env.devices.iphone8 }}:{{ env.devices.ipadpro }}:{{ env.devices.ipadair }} )
+          for TEST_DESTINATION in ( $DEVICES ); do
+            set -o pipefail && xcodebuild test -project "$EXAMPLE_PROJECT" -scheme "$EXAMPLE_SCHEME" \
+            -sdk "$SDK" -destination "$TEST_DESTINATION" -configuration Debug -enableCodeCoverage YES \
+            -derivedDataPath Build/ ONLY_ACTIVE_ARCH=YES | xcpretty -c;
+          done
+          IFS=$IFS_BACKUP
 
       - name: Convert and upload coverage
         uses: paambaati/codeclimate-action@v2.5.7
@@ -92,5 +103,5 @@ jobs:
         env:
           CC_TEST_REPORTER_ID: ${{secrets.CC_TEST_REPORTER_ID}}
         with:
-          coverageCommand: "slather coverage --build-directory Build/"
+          coverageCommand: "slather coverage -x --build-directory Build/"
           coverageLocations: "${{github.workspace}}/Tests/cobertura.xml:cobertura"
